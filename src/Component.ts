@@ -8,17 +8,16 @@ export type RzfElementType = HTMLElement & {
 
 
 export class Component {
-    static BASE_ELEMENT: string = "div";
-    static BASE_ELEMENT_FUNCTION(): HTMLElement { return document.createElement(this.BASE_ELEMENT) };
+    protected static BASE_ELEMENT: string = "div";
+    protected static BASE_ELEMENT_FUNCTION(): HTMLElement { return document.createElement(this.BASE_ELEMENT) };
 
-    element: RzfElementType;
-    states: Map<State<any>, CallbackType<any>[]>;
+    private _element: RzfElementType;
+    private states: Map<State<any>, CallbackType<any>[]>;
 
-    constructor(...args: any[]) {
-        // @ts-ignore BASE_ELEMENT_FUNCTION определено, я хз чё ему не нравится
-        this.element = this.constructor.BASE_ELEMENT_FUNCTION();
-        this.element.rzf_component = this;
-        this.element.classList.add(this.constructor.name.toLowerCase());
+    constructor(...args: any[]) {   
+        this._element = (this.constructor as typeof Component).BASE_ELEMENT_FUNCTION() as RzfElementType;
+        this._element.rzf_component = this;
+        this._element.classList.add(this.constructor.name.toLowerCase());
         console.log(`Created component ${this.constructor.name}`);
 
         this.states = new Map();
@@ -28,7 +27,11 @@ export class Component {
         this.build();
     }
 
-    createState<T>(value: T) {
+    protected get element() {
+        return this._element;
+    }
+
+    protected createState<T>(value: T) {
         console.log(`Created state for ${this.constructor.name}`);
 
         const state = new State(value);
@@ -36,11 +39,10 @@ export class Component {
         return state;
     }
 
-    createCallback<T>(state: State<T>, callback: CallbackType<T>) {
+    protected createCallback<T>(state: State<T>, callback: CallbackType<T>) {
         console.log(`Created callback "${callback}" on ${state.constructor.name} for ${this.constructor.name}`);
 
         this.states.set(state, this.states.get(state) || []);
-        // @ts-ignore т.к. делаем инсёрт строчкой выше
         this.states.get(state).push(callback);
 
         state.addCallback(callback);
@@ -49,7 +51,7 @@ export class Component {
     destroy() {
         console.log(`Destroying component ${this.constructor.name}`);
 
-        this.element.remove();
+        this._element.remove();
 
         for (const [state, callbacks] of this.states.entries()) {
             console.log(`Removing [${callbacks}] callbacks from ${state.constructor.name} for ${this.constructor.name}`);
@@ -57,23 +59,22 @@ export class Component {
         }
     }
 
-    init(...args: any[]) {
+    private init(...args: any[]) {
     }
     
-    build() {
+    private build() {
     }
 
-    render<T>(state: State<T>, prev: T, cur: T) {
+    private render<T>(state: State<T>, prev: T, cur: T) {
     }
 }
 
 export class RootComponent extends Component {
-    static BASE_ELEMENT_FUNCTION(): HTMLElement { 
-        // @ts-ignore т.к. не может быть null
-        return document.getElementById("root") 
+    protected static BASE_ELEMENT_FUNCTION(): HTMLElement { 
+        return document.getElementById("root") ?? (()=>{throw new Error("Root element not found")})();
     };
 
-    observer: MutationObserver;
+    private observer: MutationObserver;
 
     constructor() {
         super();
@@ -84,14 +85,12 @@ export class RootComponent extends Component {
                     return
                 }
 
-                mutation.removedNodes.forEach((node) => {
-                    // @ts-ignore т.к. проверяем есть ли такое поле
+                mutation.removedNodes.forEach((node: RzfElementType) => {
                     node.rzf_component && node.rzf_component.destroy()
                 }); // чистим за нашими компонентами
             })
         });
 
         this.observer.observe(this.element, { childList: true, subtree: true });
-
     }
 }

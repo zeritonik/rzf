@@ -1,8 +1,8 @@
 export type CallbackType<T> = (state: State<T>, prev: T, cur: T) => void
 
 export class State<T> {
-    value: T;
-    callbacks: CallbackType<T>[];
+    private value: T;
+    private callbacks: CallbackType<T>[];
 
     constructor(value: T) {
         this.value = value;
