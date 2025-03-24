@@ -1,11 +1,21 @@
 import { State } from "./State.js";
+import { CallbackType } from "./State.js";
+
+
+export type RzfElementType = HTMLElement & {
+    rzf_component: Component
+}
 
 
 export class Component {
-    static BASE_ELEMENT = "div";
-    static BASE_ELEMENT_FUNCTION() { return document.createElement(this.BASE_ELEMENT)};
+    static BASE_ELEMENT: string = "div";
+    static BASE_ELEMENT_FUNCTION(): HTMLElement { return document.createElement(this.BASE_ELEMENT) };
 
-    constructor(...args) {
+    element: RzfElementType;
+    states: Map<State<any>, CallbackType<any>[]>;
+
+    constructor(...args: any[]) {
+        // @ts-ignore BASE_ELEMENT_FUNCTION определено, я хз чё ему не нравится
         this.element = this.constructor.BASE_ELEMENT_FUNCTION();
         this.element.rzf_component = this;
         this.element.classList.add(this.constructor.name.toLowerCase());
@@ -18,18 +28,19 @@ export class Component {
         this.build();
     }
 
-    createState(value) {
+    createState<T>(value: T) {
         console.log(`Created state for ${this.constructor.name}`);
 
         const state = new State(value);
-        this.createCallback(state, (prev, cur) => this.render(prev, cur));
+        this.createCallback(state, (state: State<T>, prev: T, cur: T) => this.render(state, prev, cur));
         return state;
     }
 
-    createCallback(state, callback) {
+    createCallback<T>(state: State<T>, callback: CallbackType<T>) {
         console.log(`Created callback "${callback}" on ${state.constructor.name} for ${this.constructor.name}`);
 
         this.states.set(state, this.states.get(state) || []);
+        // @ts-ignore т.к. делаем инсёрт строчкой выше
         this.states.get(state).push(callback);
 
         state.addCallback(callback);
@@ -46,18 +57,23 @@ export class Component {
         }
     }
 
-    init() {
+    init(...args: any[]) {
     }
     
     build() {
     }
 
-    render() {
+    render<T>(state: State<T>, prev: T, cur: T) {
     }
 }
 
 export class RootComponent extends Component {
-    static BASE_ELEMENT_FUNCTION() { return document.getElementById("root") };
+    static BASE_ELEMENT_FUNCTION(): HTMLElement { 
+        // @ts-ignore т.к. не может быть null
+        return document.getElementById("root") 
+    };
+
+    observer: MutationObserver;
 
     constructor() {
         super();
@@ -68,7 +84,10 @@ export class RootComponent extends Component {
                     return
                 }
 
-                mutation.removedNodes.forEach(node => node.rzf_component && node.rzf_component.destroy()); // чистим за нашими компонентами
+                mutation.removedNodes.forEach((node) => {
+                    // @ts-ignore т.к. проверяем есть ли такое поле
+                    node.rzf_component && node.rzf_component.destroy()
+                }); // чистим за нашими компонентами
             })
         });
 

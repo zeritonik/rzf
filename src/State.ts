@@ -1,25 +1,27 @@
-export class State {
-    value;
-    callbacks;
+export type CallbackType<T> = (state: State<T>, prev: T, cur: T) => void
 
-    constructor(value) {
+export class State<T> {
+    value: T;
+    callbacks: CallbackType<T>[];
+
+    constructor(value: T) {
         this.value = value;
         this.callbacks = [];
     }
 
-    addCallback(callback) {
+    addCallback(callback: CallbackType<T>) {
         this.callbacks.push(callback);
 
         console.log(`Added callback [${callback}] to ${this.constructor.name}, total: [${this.callbacks}]`);
     }
 
-    removeCallbacks(callbacks) {
-        this.callbacks = this.callbacks.filter(cb => !callbacks.includes(cb));
+    removeCallbacks(callbacks : CallbackType<T>[]) {
+        this.callbacks = this.callbacks.filter(cb => callbacks.indexOf(cb) === -1);
 
         console.log(`Removed [${callbacks}] callbacks from ${this.constructor.name}, left: [${this.callbacks}]`);
     }
 
-    setState(value) {
+    setState(value: T) {
         console.log(`Set state from ${this.value} to ${value}`);
 
         const prev = this.value;
@@ -27,11 +29,11 @@ export class State {
 
         this.callbacks.slice().reverse().forEach(callback => {
             console.log(`Calling callback "${callback}" for ${this.constructor.name}`);
-            callback(prev, this.value)
+            callback(this, prev, this.value)
         });
     }
 
-    getState() {
+    getState(): T {
         return this.value;
     }
 }
