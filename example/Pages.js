@@ -6,6 +6,8 @@ export class Home extends Component {
     static BASE_ELEMENT = "section"
 
     init() {
+        // Этот callback нужен для демонстрации очищения коллбеков при удалении компонента
+        // он не несёт смысловой нагрузки
         this.createCallback(userState, () => this.someFunction());
     }
 
@@ -17,6 +19,7 @@ export class Home extends Component {
     }
 
     build() {
+        // Вставляем напрямую html, т.к. это всего лишь пример
         this.element.insertAdjacentHTML("beforeend", `
             ${userState.getState() ? `<h4>Hi, ${userState.getState().login}!</h4>` : ``}
             <h1>Lent</h1>
@@ -40,7 +43,7 @@ export class Login extends Component {
         `)
         this.element.querySelector("form").addEventListener("submit", e => {
             e.preventDefault();
-            userState.setState({
+            userState.setState({ // устанавливаем пользователя
                 login: "John Doe"
             });
         })
@@ -55,7 +58,7 @@ export class Logout extends Component {
             <button>Logout</button>
         `)
         this.element.querySelector("button").addEventListener("click", () => {
-            userState.setState(undefined);
+            userState.setState(undefined); // удаляем пользователя
         })
     }
 }

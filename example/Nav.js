@@ -2,15 +2,16 @@ import { Component } from "../build/Component.js";
 
 import { userState } from "./UserState.js";
 
+// Навигация
 export class Nav extends Component {
-    static BASE_ELEMENT = "nav"
+    static BASE_ELEMENT = "nav" // установка базового элемента
     init(pageState) {
-        this.createCallback(userState, () => this.build());
+        this.createCallback(userState, () => this.build()); // перестраиваем навигацию при изменении пользователя
 
         this.pageState = pageState;
-        this.createCallback(this.pageState, () => this.build());
+        this.createCallback(this.pageState, () => this.build()); // меняем активную навигацию при изменении страницы
 
-        this.element.addEventListener("click", e => {
+        this.element.addEventListener("click", e => { // меняем страницу при клике
             if (e.target.dataset.page) {
                 e.preventDefault();
                 this.pageState.setState(e.target.dataset.page);
@@ -21,7 +22,7 @@ export class Nav extends Component {
     build() {
         this.element.innerHTML = "";
 
-        const items = userState.getState() ? {
+        const items = userState.getState() ? { // если пользователь авторизован
             "home": {
                 text: "Home",
                 href: "/",
@@ -34,7 +35,7 @@ export class Nav extends Component {
                 text: userState.getState().login,
                 href: "",
             }
-        } : {
+        } : { // если пользователь не авторизован
             "home": {
                 text: "Home",
                 href: "/",
@@ -56,11 +57,16 @@ export class Nav extends Component {
         }
     }
 
-    render = function (state, prev, cur) {
-        const prev_link = this.element.querySelector(`a[data-page="${prev}"]`)
-        const cur_link = this.element.querySelector(`a[data-page="${cur}"]`)
-
-        prev_link && prev_link.classList.remove("active");
-        cur_link && cur_link.classList.add("active");
+    render (state, prev, cur) {
+        switch (state) {
+            case this.pageState:
+                // меняем активную навигацию
+                const prev_link = this.element.querySelector(`a[data-page="${prev}"]`)
+                const cur_link = this.element.querySelector(`a[data-page="${cur}"]`)
+        
+                prev_link && prev_link.classList.remove("active");
+                cur_link && cur_link.classList.add("active");
+                break;
+        }
     }
 }
