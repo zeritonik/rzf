@@ -1,7 +1,7 @@
 export type CallbackType<T> = (state: State<T>, prev: T, cur: T) => void
 
 export class State<T> {
-    private value: T;
+    protected value: T;
     private callbacks: CallbackType<T>[];
 
     constructor(value: T) {

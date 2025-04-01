@@ -1,6 +1,5 @@
-import { State } from "./State.js";
-import { CallbackType } from "./State.js";
-
+import { State } from "./State.ts";
+import { CallbackType } from "./State.ts";
 
 export type RzfElementType = HTMLElement & {
     rzf_component: Component
@@ -17,7 +16,6 @@ export class Component {
     constructor(...args: any[]) {   
         this._element = (this.constructor as typeof Component).BASE_ELEMENT_FUNCTION() as RzfElementType;
         this._element.rzf_component = this;
-        this._element.classList.add(this.constructor.name.toLowerCase());
         console.log(`Created component ${this.constructor.name}`);
 
         this.states = new Map();
@@ -27,7 +25,7 @@ export class Component {
         this.build();
     }
 
-    protected get element() {
+    get element() {
         return this._element;
     }
 
@@ -59,13 +57,13 @@ export class Component {
         }
     }
 
-    private init(...args: any[]) {
+    protected init(...args: any[]) {
     }
     
-    private build() {
+    protected build() {
     }
 
-    private render<T>(state: State<T>, prev: T, cur: T) {
+    protected render(state: State<any>, prev: any, cur: any) {
     }
 }
 
