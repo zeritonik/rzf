@@ -27,13 +27,13 @@ export class Route {
     }
 
     
-    math(url: string): any {
+    match(url: string): any {
         return url.match(this._path + Route.path_append);
     }
 
     build(params: any): string {
         const url = this._build(params);
-        if (!this.math(url)) 
+        if (!this.match(url)) 
             throw new Error(`Route "${this._path}" does not match builded "${url}"`);
         return url;
     }
@@ -82,7 +82,7 @@ export class Router {
     }
 
     callCallback(route: Route, routable: Routable) {
-        const res = route.math(this.getRoute()) ?? [''];
+        const res = route.match(this.getRoute()) ?? [''];
 
         console.log(`Matching ${route} with ${this._href} got ${res} [callCallback]`);
         setTimeout(
@@ -97,8 +97,8 @@ export class Router {
 
     private callCallbacks(prev_route: string, cur_route: string) {
         for (const [route, callbacks] of this._callbacks.entries()) {
-            const prev_res = route.math(prev_route) ?? [''];
-            const res = route.math(cur_route) ?? [''];
+            const prev_res = route.match(prev_route) ?? [''];
+            const res = route.match(cur_route) ?? [''];
 
             console.log(`Matching ${route} with ${this._href} got ${res} [callCallbacks]`);
             prev_res[0] !== res[0] && callbacks.forEach(r => setTimeout(() => r.onRoute({
