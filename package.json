@@ -1,0 +1,16 @@
+{
+  "package-name": "rzf",
+  "description": "framework for return zero frontend",
+  "version": "1.0.0",
+  "author": "zeritonik",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zeritonik/rzf"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.2"
+  },
+  "scripts": {
+    "build": "tsc"
+  }
+}

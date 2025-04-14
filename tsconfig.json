@@ -1,0 +1,14 @@
+{
+    "compilerOptions": {
+        "module": "es6",
+        "target": "es6",
+        "noImplicitAny": true,
+        "outDir": "build",
+
+        "noEmit": true,
+        "allowImportingTsExtensions": true
+    },
+    "include": [
+        "src/**/*"
+    ]
+}
