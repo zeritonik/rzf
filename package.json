@@ -11,6 +11,7 @@
     "typescript": "^5.8.2"
   },
   "scripts": {
-    "build": "tsc"
+    "build": "tsc",
+    "start": "http-server dist -p 8000 -o"
   }
 }
