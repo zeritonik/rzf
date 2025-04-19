@@ -1,9 +1,9 @@
 import { config } from "./rzf_config.js";
 
 export namespace VDom {
-    export type TagNode {
+    export interface TagNode {
         tag: string,
-        key: string,
+        key?: string,
         props: NodeProps,
         children: Node[],
         element?: HTMLElement
@@ -11,7 +11,7 @@ export namespace VDom {
 
     export interface TextNode {
         text: string,
-        key: string,
+        key?: string,
         element?: Text
     }
 
@@ -33,10 +33,6 @@ export namespace VDom {
         },
     }
 
-    function generateKey() {
-        return Math.random().toString(36) + Math.random().toString(36);
-    }
-
     export function createTag(info: {
         tag: string, 
         key?: string,
@@ -44,33 +40,25 @@ export namespace VDom {
         children?: Node[]
     })
     {
-        info.key = info.key || generateKey();
         info.props = info.props || {};
         info.children = info.children || [];
 
         info.props.classes = info.props.classes || [];
         info.props.styles = info.props.styles || {};
 
-        return {
-            tag: info.tag,
-            key: info.key,
-            props: info.props,
-            children: info.children
-        } as TagNode;
+        return info as TagNode;
     }
 
-    export function createText(text: string, key?: string) {
-        return {
-            text: text,
-            key: key || generateKey()
-        } as TextNode;
+    export function createText(info: {text: string, key?: string}): TextNode {
+        return info as TextNode;
     }
+
 
     export function link(el: HTMLElement|Text, node: Node) {
         config.verbose && console.log("Link", node, el)
         node.element = el;
 
-        if ((node as TextNode).text) return;  // no children
+        if (!(node as TagNode).children) return;  // no children
         node = node as TagNode;
         
         node.children.forEach((child, index) => {
@@ -79,10 +67,11 @@ export namespace VDom {
     }
     
     export function build(node: Node) {
-        if ((node as TextNode).text) {
+        if (!(node as TagNode).children) {
             config.verbose && console.log("Build text", node)
             return document.createTextNode((node as TextNode).text);
         }
+        // @ts-ignore
         node = node as TagNode;
 
         config.verbose && console.log("Build tag", node)
@@ -104,27 +93,39 @@ export namespace VDom {
         return htmlNode;
     }
     
-    function checkElements(...nodes: Node[]) {
+    
+    function checkNodesLink(...nodes: Node[]) {
         for (const node of nodes) {
             if (!node.element) {
-                config.verbose && console.error("Error element",node)
+                config.verbose && console.error("Error not linked node",node)
                 throw "checkElements: element is undefined"; 
             }
         }
     }
+
+    function checkNodesKeyed(...nodes: Node[]): boolean {
+        let keys = 0;
+        for (const node of nodes) {
+            keys += node.key ? 1 : 0;
+        }
+        if (keys > 1 && keys !== nodes.length) {
+            config.verbose && console.error("All or none nodes must have keys", nodes)
+        }
+        return keys > 0;
+    }
     
     export function update(oldNode: Node, newNode: Node) {
-        checkElements(oldNode)
+        checkNodesLink(oldNode)
 
         const el = oldNode.element!;
 
-        if ((oldNode as TextNode).text && (newNode as TextNode).text) {
+        if (!(oldNode as TagNode).children && !(newNode as TagNode).children) {
             if ((oldNode as TextNode).text !== (newNode as TextNode).text) {
                 (el as Text).textContent = (newNode as TextNode).text;
             }
             return;
         }
-        if ((oldNode as TextNode).text || (newNode as TextNode).text) {
+        if (!(oldNode as TagNode).children || !(newNode as TagNode).children) {
             el.replaceWith(build(newNode))
             return;
         }
@@ -165,33 +166,43 @@ export namespace VDom {
     }
 
     function updateChildren(oldNode: TagNode, newNode: TagNode) {
-        checkElements(...oldNode.children);
+        checkNodesLink(...oldNode.children);
+        const keyed = checkNodesKeyed(...oldNode.children, ...newNode.children);
 
-        const oldChilds = oldNode.children.reduce((acc, child) => {
-            acc[child.key] = child;
+        if (!keyed) {
+            newNode.children.forEach((child, index) => {
+                if (index > oldNode.children.length - 1) {
+                    oldNode.element!.appendChild(build(child));
+                    return;
+                }
+                update(oldNode.children[index], child);
+            })
+            return;
+        }
+
+        const oldChildren = oldNode.children.reduce((acc, child) => {
+            acc[child.key!] = child;
             return acc;
         }, {} as {[key: string]: Node});
-        const newChilds = newNode.children.reduce((acc, child) => {
-            acc[child.key] = child;
+        const newChildren = newNode.children.reduce((acc, child) => {
+            acc[child.key!] = child;
             return acc;
         }, {} as {[key: string]: Node});
 
-        console.log(oldChilds, newChilds)
-        // remove children with not present keys
+        // remove unused
         oldNode.children.forEach(child => {
-            if (newChilds[child.key]) return;
-            config.verbose && console.log("Remove", child)
-            child.element!.remove();
+            if (!newChildren[child.key!]) {
+                oldNode.element!.removeChild(child.element!);
+            }
         })
-
+        // updated and add
         newNode.children.forEach(child => {
-            if (oldChilds[child.key]) {
-                config.verbose && console.log("Move", child)
-                oldNode.element!.appendChild(oldChilds[child.key].element!); // if exists, move it to new place
-            } else {
-                config.verbose && console.log("Add", child)
-                oldNode.element!.appendChild(build(child)); // else build and append
-            };
+            if (oldChildren[child.key!]) {
+                update(oldChildren[child.key!], child);
+                oldNode.element!.appendChild(oldChildren[child.key!].element!);
+                return;
+            }
+            oldNode.element!.appendChild(build(child));
         })
     }
 }
