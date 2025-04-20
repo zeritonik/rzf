@@ -1,3 +1,6 @@
 export const config = {
-    verbose: true,
+    verboseVDom: true,
+    VDomIndent: 2,
+    verboseComponent: false,
+    verboseRouter: true
 }

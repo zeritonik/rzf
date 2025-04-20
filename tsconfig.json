@@ -6,8 +6,11 @@
       "esModuleInterop": true,
       "strict": true,
       "outDir": "./dist",
-      "sourceMap": true
+      "sourceMap": true,
+      "jsx": "react",
+      "jsxFactory": "h",
+      "declaration": true
     },
     "include": ["src/**/*", "tests/**/*"],
-    "exclude": ["node_modules", "**/*.test.ts"]
+    "exclude": ["node_modules", "dist"]
   }
