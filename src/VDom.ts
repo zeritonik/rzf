@@ -201,17 +201,12 @@ export class TagNode extends ContainerNode {
         config.verboseVDom && console.log(this)
         this.element = document.createElement(this.tag);
 
-        for (const className of this.props.classes) {
-            this.element.classList.add(className);
-        }
-        for (const style of Object.keys(this.props.style)) {
-            const value = this.props.style[style];
-            this.element.style.setProperty(style, value);
-        }
-        for (const handle of Object.keys(this.props.handle)) {
-            const handler = this.props.handle[handle];
-            this.element.addEventListener(handle, handler);
-        }
+        const { classes, style, handle, ...attr } = this.props;
+
+        classes.forEach(cn => this.element!.classList.add(cn));
+        Object.keys(style).forEach(st => this.element!.style.setProperty(st, style[st]));
+        Object.keys(handle).forEach(ev => this.element!.addEventListener(ev, handle[ev]));
+        Object.keys(attr).forEach(at => this.element!.setAttribute(at, attr[at]));
         
         super.build();
         config.verboseVDom && console.groupEnd();
@@ -229,24 +224,21 @@ export class TagNode extends ContainerNode {
             return;
         }
 
-        const classesToRemove = this.props.classes.filter(className => !newNode.props.classes.includes(className));
-        const classesToAdd = newNode.props.classes.filter(className => !this.props.classes.includes(className));
-        for (const className of classesToRemove) {
-            this.element!.classList.remove(className);
-        }
-        for (const className of classesToAdd) {
-            this.element!.classList.add(className);
-        }
+        const { classes, style, handle, ...attr } = this.props;
+        const { classes: new_classes, style: new_stlyle, handle: new_handle, ...new_attr } = newNode.props;
 
-        for (const style of Object.keys(this.props.style)) {
-            if (!newNode.props.style[style]) {
-                this.element!.style.removeProperty(style);
-            }
-        }
-        for (const style of Object.keys(newNode.props.style)) {
-            const value = newNode.props.style[style];
-            this.element!.style.setProperty(style, value);
-        }
+        classes.forEach(cn => this.element!.classList.remove(cn));
+        new_classes.forEach(cn => this.element!.classList.add(cn));
+
+        Object.keys(style).forEach(st => this.element!.style.removeProperty(st));
+        Object.keys(new_stlyle).forEach(st => this.element!.style.setProperty(st, new_stlyle[st]));
+
+        Object.keys(handle).forEach(h => this.element!.removeEventListener(h, handle[h]));
+        Object.keys(new_handle).forEach(h => this.element!.addEventListener(h, new_handle[h]));
+        
+        Object.keys(attr).forEach(prop => this.element!.removeAttribute(prop));
+        Object.keys(new_attr).forEach(prop => this.element!.setAttribute(prop, new_attr[prop]));
+        
 
         super.update(newNode);  // updates children
         config.verboseVDom && console.groupEnd();
@@ -306,7 +298,10 @@ export class ComponentNode extends ContainerNode {
 
         if (this.component.shouldComponentUpdate(newNode.props, {})) {
             config.verboseVDom && console.log(`shouldComponentUpdate: true`);
-            this.component.props = newNode.props;
+
+            this.component.props = newNode.props;  // copy new props
+            this.component.children = newNode.children;  // copy new children
+
             this.vdom.children[0].update(this.component.render());
             this.element = this.vdom.children[0].element as HTMLElement;
         }
@@ -322,7 +317,7 @@ export class ComponentNode extends ContainerNode {
 
 
 class VDom {
-    private VDomRoot: TagNode = new TagNode('div');
+    private VDomRoot: TagNode = new TagNode('div', {id: 'root'});
 
     bind(root: HTMLDivElement) {
         this.VDomRoot.element = root;

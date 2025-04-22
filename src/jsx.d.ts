@@ -4,6 +4,7 @@ declare global {
   namespace JSX {
     // Define the element type
     interface Element extends Node {}
+
     
     // Define intrinsic elements (HTML tags)
     interface IntrinsicElements {

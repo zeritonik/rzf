@@ -22,13 +22,15 @@ export function h(
 }
 
 function processChildren(children: (string|VDom.Node)[]): VDom.Node[] {
-    return children.map(child => {
+    return children.filter(child => child !== undefined && child !== null).map(child => {
             if (child instanceof VDom.Node) {
                 return child;
-            } else {
+            } else if (child !== undefined && child !== null) {
                 return new VDom.TextNode(child.toString());
+            } else {
+                console.error("Unsupported child: ", child);
+                return new VDom.TextNode('Unsupported child: ', child);
             }
-            throw new Error("Unsupported child: " + child);
         });
 }
 

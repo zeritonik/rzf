@@ -34,11 +34,11 @@ export class Component {
     }
 
     setState(state: any) {
-        config.verboseComponent && console.log(`{${this.constructor.name}} setState`)
         this.state = {
             ...this.state,
             ...(typeof state === 'function' ? state(this.state, this.props) : state),
         }
+        config.verboseComponent && console.log(`{${this.constructor.name}} setState`, this.state);
     }
     
     render(): VDom.Node {
