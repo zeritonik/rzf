@@ -13,6 +13,9 @@ module.exports = {
   },
   resolve: {
     extensions: ['.tsx', '.ts', '.js'],
+    alias: {
+      '@rzf': path.resolve(__dirname, 'src')
+    }
   },
   output: {
     filename: 'bundle.js',

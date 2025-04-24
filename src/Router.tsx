@@ -1,74 +1,139 @@
-import h from './jsx'
-import * as VDom from './VDom'
-import { Component } from './Component'
-import { config } from './rzf_config'
+import { Component } from "./Component";
 
-export type RouteProps = VDom.NodePropsArg & {
-    path: string,   
-}
+class Router {
+    routes: Route[] = [];
 
+    handleRoute(e: PopStateEvent) {
+        e.preventDefault();
+        this.callRoutes();
+    }
+    
+    addRoute(route: Route) {
+        this.routes.push(route);
+    }
+    
+    removeRoute(route: Route) {
+        this.routes = this.routes.filter(r => r !== route);
+    }
 
-const routes: Route[] = [];
+    callRoutes() {
+        const url = window.location.href;
+        [...this.routes].forEach(route => {
+            const match = route.match(url);
+            route.setState({
+                match
+            })
+        })
+    }
 
-function onUrlChange() {
-    config.verboseRouter && console.log(`onUrlChange ${window.location.href}`, routes);
-    for (const route of routes) {
-        route.setState({});
+    push(url: string, data: any) {
+        history.pushState(data, '', url);
+        this.callRoutes();
+    }
+    
+    replace(url: string, data: any) {
+        history.replaceState(data, '', url);
+        this.callRoutes();
     }
 }
 
-window.addEventListener('popstate', (e) => {
-    e.preventDefault();
-    onUrlChange()
-})
+const router = new Router();
+window.addEventListener('popstate', router.handleRoute.bind(router));
+export default router;
 
+
+export type RouteProps = {
+    path: string,
+    exact?: boolean,
+    component: typeof Component,
+    [key: string]: any
+}
 
 export class Route extends Component {
-    constructor(props: RouteProps, children: VDom.Node[]) {
+    state: {
+        match: Record<string, string> | null
+    }
+    props: RouteProps;
+
+    names: string[];
+    path: string;
+    
+    constructor(props: RouteProps) {
         super(props);
-        this.children = children;
-    }
+        this.state = {
+            match: null
+        };
+        this.props = props;
+        this.props.exact = props.exact || false;
 
-    componentDidMount() {
-        routes.push(this);
-        console.log(routes);
+        const {names, path} = Route.processPath(props.path);
+        this.names = names;
+        this.path = path;
     }
-
-    componentWillUnmount(): void {
-        routes.splice(routes.indexOf(this), 1);
-    }
-
-    render(): VDom.Node {
-        if ((window.location.pathname + window.location.hash).match(this.props.path)) {
-            return this.children[0];
+    
+    static processPath(path: string): {
+        path: string,
+        names: string[]
+    } {
+        // process user path like /home/:id/likes/:like_id to correct regex
+        return {
+            path: path.replace(/:\w+/g, '(\\w+)'),
+            names: Array.from(path.matchAll(/:\w+/g)).map(match => match[0].slice(1))
         }
+    }
+    
+    componentDidMount(): void {
+        router.addRoute(this);
+    }
+    
+    componentWillUnmount(): void {
+        router.removeRoute(this);
+    }
+    
+    match(href: string): Record<string, string> | null {
+        const url = new URL(href);
         
-        return <div style={{ display: 'none' }}>{this.props.path}</div>;
+        const pattern: string = this.props.exact ? this.props.path + '$' : this.props.path;
+        let match_with = url.pathname;
+        if (!match_with.endsWith('/')) match_with += '/';
+        if (pattern.indexOf('#') !== -1) match_with += url.hash;
+
+        const result = match_with.match(pattern)?.slice(1).reduce((acc, value, index) => {
+            acc[this.names[index]] = value;
+            return acc;
+        }, {} as Record<string, string>);
+        
+        return result || null;
+    }
+    
+    render() {
+        const { path, exact, component: Child, ...other } = this.props;
+        return this.state.match ? [<Child {...this.state.match} {...other} />] : [];
     }
 }
 
-export type LinkProps = VDom.NodePropsArg & {
+export type LinkProps = {
     to: string,
-    data?: any
+    [key: string]: any
 }
 
 export class Link extends Component {
-    constructor(props: LinkProps, children: VDom.Node[]) {
-        super(props, children);
-        this.children = children;
+    props: LinkProps;
+
+    constructor(props: LinkProps) {
+        super(props);
+        this.props = props;
     }
 
-    handleClick(event: Event) {
-        event = event as MouseEvent;
-
-        event.preventDefault();
-        window.history.pushState(this.props.data, '', this.props.to);
-        onUrlChange();
+    handleClck(e: MouseEvent) {
+        e.preventDefault();
+        router.push(this.props.to, {});
     }
 
-    render(): VDom.Node {
-        return (
-            <a href={this.props.to} handle={{ 'click': this.handleClick.bind(this) }}>{...this.children}</a>
-        );
+    render() {
+        const {to, children, ...other} = this.props;
+        return [<a href={to} {...other} onClick={this.handleClck.bind(this)}>
+            {children}
+        </a>]
     }
 }

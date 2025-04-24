@@ -1,33 +1,44 @@
-import h from '../src/jsx';
-import { Component } from '../src/Component';
-import { Route, Link } from '../src/Router';
-import vdom from '../src/VDom';
+import { initAt } from '@rzf/VDom';
+import { Component } from '@rzf/Component';
+import router, { Link, Route } from '@rzf/Router';
 
 class App extends Component {
+    state = {
+        color: 'red'
+    }
+
+    componentDidMount(): void {
+    }
+
+    handleClick() {
+        this.setState({ color: (this.state.color === 'red' ? 'blue' : 'red') });
+    }
+
     render() {
-        return (
+        return [
             <div>
-                <Route path="/home">
-                    <h1>Home</h1>
-                </Route>
-                <Route path="/about">
-                    <h1>About</h1>
-                </Route>
-                <Link to="/home">Home</Link>
-                <Link to="/about">About</Link>
+                <Route path="^/" exact component={Page} text="Home"/>
+                <Route path="^/page/" component={Page} text="Page" />
+                <Route path="^/about/" component={Page} text="About" />
+    
+                <Link to="/" style={{display: 'block'}}>Home</Link>
+                <Link to="/page" style={{display: 'block'}}>Page</Link>
+                <Link to="/about" style={{display: 'block'}}>About</Link>
             </div>
-        );
+        ];
     }
 }
 
-// Mount to DOM
-const rootElement = document.querySelector('div#root') as HTMLDivElement;
-vdom.bind(rootElement);
-const app = <App />
-vdom.build(app);
-console.log(vdom);
+class Page extends Component {
+    render() {
+        return [
+            <div>
+                <h1>{this.props.text}</h1>
+            </div>
+        ];
+    }
+}
 
-
-// setInterval(() => {
-//     console.log(app.toString());
-// }, 3000)
+const root = initAt(<App />, document.querySelector('#root')!);
+console.log(root)
+router.callRoutes();
