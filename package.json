@@ -22,7 +22,8 @@
   },
   "scripts": {
     "test": "jest",
-    "build": "webpack --config webpack.config.js --mode development",
+    "build": "webpack --config webpack.config.js",
+    "build:dev": "webpack --config webpack.config.js --mode development",
     "start": "http-server dist -p 8000 -o"
   }
 }

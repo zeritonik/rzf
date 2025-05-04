@@ -1,184 +1,207 @@
 
-# rzf 
+# RZF - Lightweight Virtual DOM
 
-**Как оно работает:**
+A minimalistic, performant Virtual DOM library for building reactive UI components with full JSX and TypeScript support.
 
-1.  `State` представляет собой хранилище для какого-то значения и `Observable` паттерн для установки, вызова и очистки колбеков на изменения этого значения.
-	-
-	1.  `addCallback` добавляет колбек на изменение значения
+## Features
 
-	2.  `removeCallbacks` убирает колбеки
+- **Component-based architecture** with lifecycle methods
+- **Efficient DOM updates** with keyed diffing algorithm
+- **Integrated router** for single-page applications
+- **TypeScript-first** design with complete JSX typings
+- **Tiny footprint** (~10KB minified)
+- **No external dependencies**
 
-	3.  `setState` изменяет значение и вызывает колбеки в порядке обратном добавлению
+## Usage Examples
 
-	4.  `getState` возвращает текущее хранимое значение
-	
-	Чаще всего стейты будут использоваться вместе с компонентами, потому что это удобный способ хранить значения, обновление которых должно привести к обновлению компонента. Но стейт может объявляться и вне компонента.
-	Например стейт для информации о пользователе в текущей сессии
-	
-		// userState.ts
-		export  const  userState:  State<YourUser> =  new  State(...);
-		// login.ts
-		const  response  =  await  API.postSignup(data);
-		userState.setState(response.body);
+### 1. Basic Component
+	import { Component } from './Component';
 
-2.  `Component` - базовый класс для компонентов.
-	- 
-	-  К каждому компоненту привязывается html элемент, который является корнем дерева компонента.
-	-  `element` - геттер для получения основного элемента компонента (этот элемент создаётся автоматически), по умолчанию это div, но этот элемент можно переопределить с помощью `static BASE_ELEMENT = 'form'` - поменяли элемент, который будет создан при создании на форму
-	- В наследуемых классах можно переопределить методы: 
-		- `build` - метод для построения компонента. Вызывается 1 раз автоматически. Этот метод будет вызван с аргументами, переданными в конструктор при создании компонента
-		- `render` - метод для небольших изменений в компоненте, например отображаемых данных, или 
-		- `init` - метод для пользовательской инициализации компонента до автоматического вызова
-		- `destroy` - метод вызываемый автоматически, когда `component.element пропадает` из `DOM`, при изменении этого метода в наследовании **ВСЕГДА ВЫЗЫВАЙТЕ `super.destroy()`**
-	- Методы для работы с `State` внутри компонента, т.к. компоненты должны автоматически удалять все созданные ими стейты и колбеки, что бы упростить жизнь в контроле этого процесса вводятся 2 метода.
-		- `createState<T>(value:  T): State<T>` - метод для создания состояния и инициализацией указаным значением. Компонент автоматически удалит это состояние при своём удалении. Созданные стейты сразу получают колбек, вызывающий метод `render`.
-		- `createCallback<T>(state:  State<T>, callback:  CallbackType<T>)` - метод для создания колбека на любом стейте, при удалении компонента удалится только созданные им колбеки
-	-  `RootComponent` - Особый класс, являющийся потомком `Component`. Его `element` устанавливается по селектору `div#root`. В вашем приложении **ОБЯЗАТЕЛЬНО ДОЛЖЕН БЫТЬ ЕДИНИНСТВЕННЫЙ** экземпля /потомок этого класса. Он нужен для корретного удаления компонентов со страницы.
-	Пример использования:
-	
-			// App.ts
-			export  default  class  App  extends  RootComponent {
-				protected  init() {
-					console.log('App init');
-				}
-				protected  build() {
-					// добавляем компонент с разметкой
-					this.element.appendChild(new  MainLayout().element); 
-				}
-			}
-			// MainLayout.ts
-			export  class  MainLayout  extends  Component  implements  Routable {
-				сontent: State<Component>;
-				  
-				protected  init() {
-					this.element.classList.add('main-layout');  // добавляем класс с лейаутом
-					this.content  =  this.createState(null)
-				}
-				protected build() {
-					this.element.appendChild(new  Header());
-					// отображаем 1ую страницу в которой например кнопка для смены страницы
-					this.content.setState(new Page1(this.content));
-					this.element.append(Child(new  Footer());
-				}
-				protected  render(state:  State<any>, prev:  any, cur:  any) {
-					prev && prev.element.remove(); // удаляем старую страницу
-					cur && this.element.appendChild(cur); // добавляем новую (Page2, на которую переключил Page1)
-				}
-			}
-3. `Router` - роутер
-	-
-	- `class Route` - класс представляющий собой хранилище для регулярного выражения url и удобный способ для конструирования ссылки в приложении.
-		- `constructor(path:  string, build?: (params:  any)=>string)` - path - регулярное выражение, к которому будет применяться текущий путь + хэш, build - ваша функция для преобразования роута в url с помощью метода `build(params: any): string`
-		- `get path` - возвращает path
-		- `match(url: string)` - буквально делает `return url.match(this.path + '(?!\\w)')`
-	- `Router` - ещё один `Observable` с особым функционалом, зависящем от ссылки в адресной строке. Он экспортируется синглтоном, то есть имеется доступ только к уже созданному экземпляру.
-		- `Routable` - интерфейс с методом `onRoute(data:  CallbackData):  void;`
-		- `CallbackData`
-				
-				type  CallbackData  = {
-					  route:  Route,  // объект сработевшего роута
-					  params:  RegExpMatchArray,  // результат route.match(url)
-					  searchParams:  URLSearchParams,  // параметры после ?
-					  data:  any  // данные сохранённый по текущему url 
-				};
-		- `addCallback(route: Route, routable: Routable)` - добавляет `routable.onRoute(...)` к списку вызываемых колбеков при изменении url на `route.path`
-		- `removeCallback(route: Route, routable: Routable)` - соотвественно удаляет колбек, этот метод не вызывается автоматически, вызывайте его вручную, если используете `rzf.Component`, то это удобно делать в `destroy`!
-		- `callCallback(route:  Route, routable:  Routable)` - метод нужный, что бы инициализировать ваш `Routable` текущим роутом (получить все данные CallbackData)
-		- `pushUrl(url:  string, data:  any)` - метод, меняющий url в поисковой строки через `pushState` `HistoryApi`, data - данные которые положить в историю
-		- `replaceUrl(url:  string, data:  any)` - метод, меняющий url в поисковой строки через `replaceState` `HistoryApi`, data - данные которые положить в историю
-		- **Так же роутер содержит несколько полезных методов для получения информации о текущем url**
-			- `getRoute():  string` - возвращает path + hash
-			- `getPath(): string` - возвращает path
-			- `getSearch():  URLSearchParams` - возвращает queryParams ( то что после ? )
-			- `getHash():  string` - возвращает хэш ( с # до ? )
-		
-			Пример (продолжение предыдущего примера):
-				
-				// routes.ts
-				export const routes = {
-				    pageRoute: new Route('^/(tracks|albums|artists|)'),
-				    authRoute: new Route('#(login|register)'),
-				}
-				
-				// MainLayout
-				export class MainLayout extends Component implements Routable {
-				    header: Header;
-				    playlists: Playlists;
-				    child: State<Component>;
-				    popup: State<Component>;
+	class Counter extends Component {
+	  state = { count: 0 };
 
-				    protected init() {
-				        this.element.classList.add('main-layout');
+	  increment = () => this.setState({ count: this.state.count + 1 });
 
-				        this.child = this.createState(null);
-				        this.popup = this.createState(null);
-				        Router.addCallback(routes.pageRoute, this);
-				        Router.addCallback(routes.authRoute, this);
-				    }
+	  render() {
+	    return [
+	      <div class="counter">
+	        <p>Count: {this.state.count}</p>
+	        <button onClick={this.increment}>Increment</button>
+	      </div>
+	    ];
+	  }
+	}
 
-				    protected build() {
-				        this.header = new Header();
-				        this.playlists = new Playlists();
+###  2. Conditional Rendering
+	class UserGreeting extends Component {
+	  render() {
+	    return [
+	      <div>
+	        {this.props.isLoggedIn ? (
+	          <h1>Welcome back!</h1>
+	        ) : (
+	          <button onClick={this.props.onLogin}>Log In</button>
+	        )}
+	      </div>
+	    ];
+	  }
+	}
 
-				        this.element.appendChild(this.header.element);
-				        this.element.appendChild(this.playlists.element);
+### 3. List Rendering with Keys
+	class TodoList extends Component {
+	  state = {
+	    todos: [
+	      { id: 1, text: 'Learn VDOM' },
+	      { id: 2, text: 'Build app' }
+	    ]
+	  };
 
-				        Router.callCallback(routes.pageRoute, this);
-				        Router.callCallback(routes.authRoute, this);
-				    }
+	  render() {
+	    return [
+	      <ul>
+	        {this.state.todos.map(todo => (
+	          <li key={todo.id}>{todo.text}</li>
+	        ))}
+	      </ul>
+	    ];
+	  }
+	}
 
-				    protected render(state: State<any>, prev: any, cur: any): void {
-				        switch (state) {
-				            case this.child:
-				                prev && prev.element.remove();
-				                this.element.appendChild(cur.element);
-				                break;
-				            case this.popup:
-				                prev && prev.destroy();
-				                cur && this.element.appendChild(cur.element);
-				                break;
-				        }
-				    }
+### 4. Form Handling
+	class ContactForm extends Component {
+	  state = { name: '', email: '' };
 
-				    destroy() {
-				        super.destroy();
+	  handleSubmit = (e: Event) => {
+	    e.preventDefault();
+	    console.log('Submitted:', this.state);
+	  };
 
-				        Router.removeCallback(routes.pageRoute, this);
-				        Router.removeCallback(routes.authRoute, this);
-				    }
+	  render() {
+	    return [
+	      <form onSubmit={this.handleSubmit}>
+	        <input
+	          type="text"
+	          value={this.state.name}
+	          onChange={(e) => this.setState({ name: e.target.value })}
+	          placeholder="Name"
+	        />
+	        <input
+	          type="email"
+	          value={this.state.email}
+	          onChange={(e) => this.setState({ email: e.target.value })}
+	          placeholder="Email"
+	        />
+	        <button type="submit">Send</button>
+	      </form>
+	    ];
+	  }
+	}
 
-				    onRoute({ route, params }: CallbackData) {
-				        switch (route) {
-				            case routes.authRoute:
-				                switch (params[1]) {
-				                    case 'login':
-				                        this.popup.setState(new AuthForm('login'));
-				                        break;
-				                    case 'register':
-				                        this.popup.setState(new AuthForm('register'));
-				                        break;
-				                    default:
-				                        this.popup.setState(null);
-				                }
-				                break;
-				            case routes.pageRoute:
-				                switch (params[1]) {
-				                    case '':
-				                        this.child.setState(new MainPage());
-				                        break;
-				                    case 'tracks':
-				                        this.child.setState(new TracksPage());
-				                        break;
-				                    case 'albums':
-				                        this.child.setState(new AlbumsPage());
-				                        break;
-				                    case 'artists':
-				                        this.child.setState(new ArtistsLayout());
-				                        break;
-				                }
-				                break;
-						    }
-				 	    }
-					}
+### 5. Lifecycle Methods
+	class DataLoader extends Component {
+	  state = { data: null, loading: true };
 
+	  componentDidMount() {
+	    fetch('/api/data')
+	      .then(res => res.json())
+	      .then(data => this.setState({ data, loading: false }))
+	      .catch(() => this.setState({ loading: false }));
+	  }
+
+	  componentWillUnmount() {
+	    // Clean up resources
+	  }
+
+	  render() {
+	    if (this.state.loading) return [<div>Loading...</div>];
+	    if (!this.state.data) return [<div>Error loading data</div>];
+	    return [<div>{JSON.stringify(this.state.data)}</div>];
+	  }
+	}
+
+### 6. Router Implementation
+	import { Route, Link } from './Router';
+
+	class App extends Component {
+		render = () => [
+			<nav>
+				<Link to="/">Home</Link>
+				<Link to="/about">About</Link>
+				<Link to="/users/42">User Profile</Link>
+			</nav>,
+			<main>
+				<Route path="/" exact component={HomePage} />
+				<Route path="/about" component={AboutPage} />
+				<Route path="/users/:id<int>" component={UserProfile} />
+			</main>
+		];
+	}
+
+	class UserProfile extends Component {
+	  render() {
+	    const { id } = this.props; // Access route params
+	    return [<h1>User ID: {id}</h1>];
+	  }
+	}
+
+## Core API Reference
+
+### Virtual DOM Functions
+
+`h()`
+
+Creates VNodes (used by JSX transpiler)
+
+`render()`
+
+Mounts VDOM tree to real DOM
+
+`update()`
+
+Efficiently patches DOM based on VDOM changes
+
+### Component Class
+	abstract class Component {
+	  // Current component props
+	  props: Record<string, any>;
+	  
+	  // Current component state
+	  state: Record<string, any>;
+	  
+	  // Update state and trigger re-render
+	  setState(state: Partial<this['state']>): void;
+	  
+	  // Lifecycle methods
+	  componentDidMount(): void;
+	  componentWillUnmount(): void;
+	  componentShouldUpdate?(nextProps: any, nextState: any): boolean;
+	  
+	  // Required render method
+	  abstract render(): VNode[];
+	}
+
+### Router API
+`<Route>`
+
+Renders component when path matches
+
+`<Link>`
+
+Navigation link that doesn't reload page
+
+`router.push()`
+
+Programmatic navigation
+
+`router.replace()`
+
+Navigation without history entry
+    
+
+## TypeScript Integration
+1.  Add to `tsconfig.json`:
+{
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "jsxImportSource": "./src/vdom"
+  }
