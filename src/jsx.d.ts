@@ -1,4 +1,4 @@
-import { VNode } from './VDom';
+import { VNode, child } from './VDom';
 
 declare global {
     namespace JSX {
@@ -6,7 +6,7 @@ declare global {
 
         // Base props common to most elements
         interface BaseHTMLAttributes {
-            key?: string | null;
+            key?: string | number | null;
             class?: string;
             className?: string;
             style?: Record<string, string | number>;
@@ -36,15 +36,9 @@ declare global {
 
             // Data attributes
             [key: `data-${string}`]: any;
-            dataId?: string;
 
             // Allow any other string-based attribute as a fallback
             [key: string]: any;
-
-            // Children (defined separately via ElementChildrenAttribute for components)
-            // For intrinsic elements, children are handled implicitly by the 'h' function signature
-            // but defining it here can help type checking within JSX expressions if needed.
-            children?: VNode | string | number | boolean | null | undefined | (VNode | string | number | boolean | null | undefined)[];
         }
 
         interface IntrinsicElements {

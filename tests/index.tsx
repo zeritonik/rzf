@@ -34,6 +34,7 @@ class Page extends Component {
         return [
             <div>
                 <h1>{this.props.text}</h1>
+                {[1, 2, 3].map(item => <p key={item}>{item}</p>)}
             </div>
         ];
     }

@@ -1,4 +1,4 @@
-import { VNodeType, VNode, TextVNode, TagProps, TagVNode, ComponentVNode } from "./VDom";
+import { VNodeType, VNode, TextVNode, TagProps, TagVNode, ComponentVNode, cleanUp } from "./VDom";
 import * as VDomHelpers from './VDomHelpers'
 import { render, destroy } from "./VDom";
 
@@ -39,6 +39,24 @@ export function hTag(
     } as TagVNode;
 }
 
+function getClickOutsideHandler(vnode: TagVNode, handler: EventListenerOrEventListenerObject) {
+    const res_handler = (e: MouseEvent) => {
+        if (!vnode.firstDom!.contains(e.target as HTMLElement)) {
+            if (typeof handler === 'function') {
+                handler(e);
+            } else {
+                handler.handleEvent(e);
+            }
+        }
+    };
+
+    const res = {
+        setup: () => { document.body.addEventListener('click', res_handler) },
+        drop: () => { document.body.removeEventListener('click', res_handler) }
+    }
+    return res;
+}
+
 export function renderTag(vnode: TagVNode, dom: HTMLElement, before: HTMLElement|Text|null=null) {
     vnode.firstDom = document.createElement(vnode.tag);
     dom.insertBefore(vnode.firstDom!, before);
@@ -52,6 +70,11 @@ export function renderTag(vnode: TagVNode, dom: HTMLElement, before: HTMLElement
     })
 
     Object.keys(on).forEach(key => {
+        if (key === 'clickoutside') {
+            vnode.clickOutside = getClickOutsideHandler(vnode, on[key]);
+            vnode.clickOutside.setup();
+            return;
+        }
         vnode.firstDom!.addEventListener(key, on[key]);
     })
 
@@ -69,13 +92,16 @@ export function renderTag(vnode: TagVNode, dom: HTMLElement, before: HTMLElement
 
 export function destroyTag(vnode: TagVNode) {
     vnode.firstDom!.remove();
+    cleanUpTag(vnode);
+    return;
+}
+
+export function cleanUpTag(vnode: TagVNode) {
+    vnode.clickOutside?.drop();
     Object.entries(vnode.props.on).forEach(([key, value]) => {
         vnode.firstDom!.removeEventListener(key, value);
     })
-    while (vnode.children.length) {
-        destroy(vnode.children[0]);
-    }
-    return;
+    vnode.children.forEach(cleanUp)
 }
 
 export function updateTag(vnode: TagVNode, newVNode: TagVNode) {
@@ -109,10 +135,19 @@ export function updateTag(vnode: TagVNode, newVNode: TagVNode) {
 
     // remove events that are not in new
     Object.entries(on).filter(([key, value]) => newOn[key] !== value).forEach(([key, value]) => {
+        if (key === 'clickoutside') {
+            vnode.clickOutside!.drop();
+            return;
+        }
         vnode.firstDom!.removeEventListener(key, value);
     })
     // add events that are not in old
     Object.entries(newOn).filter(([key, value]) => on[key] !== value).forEach(([key, value]) => {
+        if (key === 'clickoutside') {
+            vnode.clickOutside = getClickOutsideHandler(vnode, value);
+            vnode.clickOutside.setup();
+            return;
+        }
         vnode.firstDom!.addEventListener(key, value);
     })
 
@@ -130,8 +165,8 @@ export function updateTag(vnode: TagVNode, newVNode: TagVNode) {
         vnode.firstDom!.removeAttribute(key);
     })
     // add new attributes
-    Object.entries(newAttrs).forEach(([key, value]) => {
-        vnode.firstDom!.setAttribute(key, value);
+    Object.entries(newAttrs).filter(([key, value]) => attrs[key] !== value).forEach(([key, value]) => {
+        (vnode.firstDom! as any)[key] = value;
     })
 
     VDomHelpers.updateChildren(vnode, newVNode);

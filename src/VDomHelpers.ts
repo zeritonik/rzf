@@ -1,13 +1,13 @@
 import { VNode, VNodeType, TextVNode, TagVNode, ComponentVNode } from './VDom';
 import { render, destroy, update, putInDom } from './VDom';
 
-export function getParentTag(vnode: VNode) {
+export function getParentTag(vnode: VNode): TagVNode|null {
     let parent = vnode.parent;
     while (parent && parent.type !== VNodeType.TAG) {
         parent = parent.parent;
     }
     !parent && console.error("Can't find parent tag", vnode);
-    return parent;
+    return parent as TagVNode || null;
 }
 
 /**
@@ -148,15 +148,13 @@ export function updateChildren(vnode: TagVNode | ComponentVNode, newVNode: TagVN
     const before = vnode.type === VNodeType.TAG ? null : getNextDom(vnode);
     
     const newKeyed = newVNode.children.reduce((acc, child) => {
-        // @ts-ignore  cause ts is stupid autistic peace of shit
-        if (typeof child !== 'string' && child.key) {
-            // @ts-ignore  cause ts is stupid autistic peace of shit
+        if (child.type !== VNodeType.TEXT && child.key) {
             acc[child.key] = child;
         }
         return acc;
     }, {} as Record<string, VNode>);
-    const oldKeyed = vnode.children.reduce((acc, child) => {
-        // @ts-ignore  cause ts is stupid autistic peace of shit
+    const oldKeyed = vnode.children.reduceRight((acc, child) => {
+        // @ts-ignore
         const key = child.key;
         if (key) {
             if (!newKeyed[key]) {
@@ -167,11 +165,11 @@ export function updateChildren(vnode: TagVNode | ComponentVNode, newVNode: TagVN
         }
         return acc;
     }, {} as Record<string, VNode>);
-    
+
     let j = 0;
     let to = vnode.children.length;
     newVNode.children.forEach((child, index) => {
-        // @ts-ignore  cause ts is stupid autistic peace of shit
+        // @ts-ignore
         const key = child.key;
         let oldChild;
         if (key) {
@@ -196,7 +194,7 @@ export function updateChildren(vnode: TagVNode | ComponentVNode, newVNode: TagVN
     })
     while (j < to) {
         // @ts-ignore  cause ts is stupid autistic peace of shit
-        if (!vnode.children[j].key) {
+        if (!vnode.children[j].key || !newKeyed[vnode.children[j].key]) {
             destroy(vnode.children[j])
             to--;
         } else {

@@ -10,20 +10,23 @@ class Router {
     
     addRoute(route: Route) {
         this.routes.push(route);
+        this.callRoute(route);
     }
     
     removeRoute(route: Route) {
         this.routes = this.routes.filter(r => r !== route);
     }
 
-    callRoutes() {
+    callRoute(route: Route) {
         const url = window.location.href;
-        [...this.routes].forEach(route => {
-            const match = route.match(url);
-            route.setState({
-                match
-            })
+        const match = route.match(url);
+        route.setState({
+            match
         })
+    }
+
+    callRoutes() {
+        [...this.routes].forEach(this.callRoute);
     }
 
     push(url: string, data: any) {
@@ -37,25 +40,28 @@ class Router {
     }
 }
 
-const router = new Router();
-window.addEventListener('popstate', router.handleRoute.bind(router));
-export default router;
 
+enum ParamType {
+    String,
+    Number
+}
 
 export type RouteProps = {
     path: string,
     exact?: boolean,
     component: typeof Component,
+    elseComponent?: typeof Component,
     [key: string]: any
 }
 
 export class Route extends Component {
     state: {
-        match: Record<string, string> | null
+        match: Record<string, string|number> | null
     }
     props: RouteProps;
 
     names: string[];
+    types: ParamType[];
     path: string;
     
     constructor(props: RouteProps) {
@@ -66,20 +72,20 @@ export class Route extends Component {
         this.props = props;
         this.props.exact = props.exact || false;
 
-        const {names, path} = Route.processPath(props.path);
-        this.names = names;
-        this.path = path;
+        this.processPath();
     }
     
-    static processPath(path: string): {
-        path: string,
-        names: string[]
-    } {
-        // process user path like /home/:id/likes/:like_id to correct regex
-        return {
-            path: path.replace(/:\w+/g, '(\\w+)'),
-            names: Array.from(path.matchAll(/:\w+/g)).map(match => match[0].slice(1))
-        }
+    processPath(){
+        // process user path like /home/:id<int>/likes/:like_id to correct regex
+        this.path = this.props.path.replace(/:\w+<int>/g, '(\\d+)').replace(/:\w+/g, '(\\w+)');
+
+        this.names = [];
+        this.types = [];
+        Array.from(this.props.path.matchAll(/:(\w+)(<int>)?/g)).map(([_, name, type]) => {
+            if (type === '<int>') this.types.push(ParamType.Number);
+            else this.types.push(ParamType.String);
+            this.names.push(name);
+        })
     }
     
     componentDidMount(): void {
@@ -90,40 +96,36 @@ export class Route extends Component {
         router.removeRoute(this);
     }
     
-    match(href: string): Record<string, string> | null {
+    match(href: string): Record<string, string|number> | null {
         const url = new URL(href);
         
-        const pattern: string = this.props.exact ? this.props.path + '$' : this.props.path;
+        const pattern: string = this.props.exact ? this.path + '$' : this.path;
         let match_with = url.pathname;
         if (!match_with.endsWith('/')) match_with += '/';
         if (pattern.indexOf('#') !== -1) match_with += url.hash;
 
         const result = match_with.match(pattern)?.slice(1).reduce((acc, value, index) => {
-            acc[this.names[index]] = value;
+            acc[this.names[index]] = this.types[index] === ParamType.Number ? +value : value;
             return acc;
-        }, {} as Record<string, string>);
+        }, {} as Record<string, string|number>);
         
         return result || null;
     }
     
     render() {
-        const { path, exact, component: Child, ...other } = this.props;
-        return this.state.match ? [<Child {...this.state.match} {...other} />] : [];
+        const { path, exact, component: Child, elseComponent: ElseChild, ...other } = this.props;
+        if (this.state.match) return [<Child {...this.state.match} {...other} />];
+        if (ElseChild) return [<ElseChild {...other} />];
+        return [];
     }
 }
 
-export type LinkProps = {
-    to: string,
-    [key: string]: any
-}
 
 export class Link extends Component {
-    props: LinkProps;
-
-    constructor(props: LinkProps) {
-        super(props);
-        this.props = props;
-    }
+    props: {
+        to: string,
+        [key: string]: any
+    };
 
     handleClck(e: MouseEvent) {
         e.preventDefault();
@@ -137,3 +139,7 @@ export class Link extends Component {
         </a>]
     }
 }
+
+const router = new Router();
+window.addEventListener('popstate', router.handleRoute.bind(router));
+export default router;

@@ -1,7 +1,7 @@
 import * as VDomHelpers from './VDomHelpers'
 import { Component, ComponentConstructor } from "./Component";
-import { destroyTag, hTag, renderTag, updateTag } from "./TagVNode";
-import { destroyComponent, hComponent, renderComponent, updateComponent } from "./ComponentVNode";
+import { destroyTag, cleanUpTag, hTag, renderTag, updateTag } from "./TagVNode";
+import { destroyComponent, cleanUpComponent, hComponent, renderComponent, updateComponent } from "./ComponentVNode";
 
 export enum VNodeType {
     TEXT,
@@ -41,7 +41,11 @@ export type TagVNode = NonTextVNode & {
     type: VNodeType.TAG,
     tag: string,
     props: TagProps,
-    firstDom?: HTMLElement
+    firstDom?: HTMLElement,
+    clickOutside?: {
+        setup: () => void,
+        drop: () => void,
+    }
 }
 
 export type ComponentVNode = NonTextVNode & {
@@ -53,11 +57,13 @@ export type ComponentVNode = NonTextVNode & {
 
 export type VNode = TextVNode | TagVNode | ComponentVNode
 
+export type child = (VNode|string|number|boolean|null|undefined)
+
 export function h(
     type: string|ComponentConstructor, 
     key: string|null, 
     props: Record<string, any>, 
-    ...children: (VNode|string|number|boolean|null|undefined)[]
+    ...children: child[]
 ): VNode {
     if (typeof type === 'string') {
         return hTag(type, key, props, ...processChildren(children));
@@ -68,8 +74,8 @@ export function h(
     }
 }
 
-function processChildren(children: (VNode|string|number|boolean|null|undefined)[]): VNode[] {
-    return children.filter(child => child !== undefined && child !== null).map(child => {
+function processChildren(children: child[]): VNode[] {
+    return children.filter(child => child !== undefined && child !== null && typeof child !== 'boolean').map(child => {
         if (typeof child === 'string' || typeof child === 'number' || typeof child === 'boolean') {
             return {
                 type: VNodeType.TEXT,
@@ -111,6 +117,21 @@ export function destroy(vnode: VNode): number {
 
     !destroyed && console.error("Can`t destroy", vnode);
     return VDomHelpers.remove(vnode);
+}
+
+export function cleanUp(vnode: VNode) {
+    if (vnode.type === VNodeType.TEXT) {
+        return;
+    } 
+    if (vnode.type === VNodeType.COMPONENT) {
+        cleanUpComponent(vnode);
+        return;
+    }
+    if (vnode.type === VNodeType.TAG) {
+        cleanUpTag(vnode);
+        return;
+    } 
+    console.error("Can`t clean up", vnode);
 }
 
 export function update(vnode: VNode, newVNode: VNode) {
